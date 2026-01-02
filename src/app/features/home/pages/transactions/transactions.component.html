@@ -1,0 +1,24 @@
+<div class="transactions-container">
+  <div class="transactions-header">
+    <h1>Transações</h1>
+    <button class="new-btn" (click)="openModal()">Nova Transação</button>
+  </div>
+
+  <!-- Tabela será implementada aqui -->
+  <div class="table-placeholder">
+    <p>Tabela de transações será implementada aqui</p>
+  </div>
+
+  <!-- Modal será implementado aqui -->
+  <div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Nova Transação</h2>
+        <button class="close-btn" (click)="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Formulário do modal será implementado aqui</p>
+      </div>
+    </div>
+  </div>
+</div>

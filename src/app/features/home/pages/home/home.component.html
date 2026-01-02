@@ -1,0 +1,350 @@
+<div class="home-container" (click)="closeMenu()">
+  <!-- Header Section -->
+  <header class="header">
+    <h1 class="title">Controle Financeiro</h1>
+    <p class="subtitle">Gerencie suas receitas e despesas</p>
+  </header>
+
+  <!-- Date Navigation -->
+  <div class="date-navigation">
+    <button class="nav-button" (click)="previousMonth()">
+      <span>&lt;</span>
+    </button>
+    <div class="date-display">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M15.8333 2.5H15V1.66667C15 1.20833 14.625 0.833333 14.1667 0.833333C13.7083 0.833333 13.3333 1.20833 13.3333 1.66667V2.5H6.66667V1.66667C6.66667 1.20833 6.29167 0.833333 5.83333 0.833333C5.375 0.833333 5 1.20833 5 1.66667V2.5H4.16667C2.875 2.5 1.875 3.5 1.875 4.79167V15.8333C1.875 17.125 2.875 18.125 4.16667 18.125H15.8333C17.125 18.125 18.125 17.125 18.125 15.8333V4.79167C18.125 3.5 17.125 2.5 15.8333 2.5ZM15.8333 15.8333H4.16667V8.33333H15.8333V15.8333Z" fill="#718096"/>
+      </svg>
+      <span>{{ currentMonth }}</span>
+    </div>
+    <button class="nav-button" (click)="nextMonth()">
+      <span>&gt;</span>
+    </button>
+  </div>
+
+  <!-- New Transaction Button -->
+  <button class="new-transaction-btn" (click)="openModal()">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 5V19M5 12H19" stroke="white" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+    <span>Nova Transação</span>
+  </button>
+
+  <!-- Summary Cards -->
+  <div class="summary-cards">
+    <!-- Receitas Card -->
+    <div class="summary-card receitas-card">
+      <div class="card-header">
+        <span class="card-label">RECEITAS</span>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 17L9 11L13 15L21 7" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 7H15V13" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="card-value receitas-value">R$ {{ formatCurrency(receitas) }}</div>
+    </div>
+
+    <!-- Despesas Card -->
+    <div class="summary-card despesas-card">
+      <div class="card-header">
+        <span class="card-label">DESPESAS</span>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 7L9 13L13 9L21 17" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M21 17H15V11" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="card-value despesas-value">R$ {{ formatCurrency(despesas) }}</div>
+    </div>
+
+    <!-- Saldo Card -->
+    <div class="summary-card saldo-card">
+      <div class="card-header">
+        <span class="card-label">SALDO</span>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 9V12M12 15H12.01M5.07183 19H18.9282C20.4678 19 21.4301 17.3333 20.6603 16L13.7321 4C12.9623 2.66667 11.0377 2.66667 10.2679 4L3.33975 16C2.56995 17.3333 3.53223 19 5.07183 19Z" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="card-value saldo-value">R$ {{ formatCurrency(saldo) }}</div>
+      <div class="warning-box" *ngIf="saldo < 0">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M8 1L1 15H15L8 1Z" fill="#F59E0B"/>
+        </svg>
+        <span>Gastos acima do faturamento</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transactions Section -->
+  <div class="transactions-section">
+    <div class="section-title">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2.5 5H17.5M2.5 10H17.5M2.5 15H17.5" stroke="#718096" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span>Transações</span>
+    </div>
+    <div class="filter-buttons">
+      <button 
+        class="filter-btn" 
+        [class.active]="activeTab === 'all'"
+        (click)="setActiveTab('all')">
+        Todos
+      </button>
+      <button 
+        class="filter-btn" 
+        [class.active]="activeTab === 'expenses'"
+        (click)="setActiveTab('expenses')">
+        Despesas
+      </button>
+      <button 
+        class="filter-btn" 
+        [class.active]="activeTab === 'income'"
+        (click)="setActiveTab('income')">
+        Receitas
+      </button>
+    </div>
+
+    <!-- Paid Transactions -->
+    <div class="transactions-group" *ngIf="getPaidTransactions().length > 0">
+      <h3 class="group-title">
+        <span *ngIf="activeTab === 'all'">PAGOS ({{ getPaidTransactions().length }})</span>
+        <span *ngIf="activeTab === 'expenses'">DESPESAS PAGAS ({{ getPaidTransactions().length }})</span>
+        <span *ngIf="activeTab === 'income'">RECEITAS RECEBIDAS ({{ getPaidTransactions().length }})</span>
+      </h3>
+      <div class="transaction-list">
+        <div class="transaction-item" *ngFor="let transaction of getPaidTransactions()">
+          <div class="transaction-status" [ngClass]="{'paid': transaction.status === 'paid', 'income': transaction.type === 'income', 'expense': transaction.type === 'expense'}">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" *ngIf="transaction.type === 'expense'">
+              <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" *ngIf="transaction.type === 'income'">
+              <path d="M8 2.66667L13.3333 8L8 13.3333L2.66667 8L8 2.66667Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="transaction-content">
+            <div class="transaction-name">{{ transaction.name }}</div>
+            <div class="transaction-meta">
+              <span class="category-tag">{{ transaction.category }}</span>
+              <span class="transaction-dates">
+                <span *ngIf="transaction.type === 'expense'">Vence: {{ transaction.dueDate }} Pago: {{ transaction.paidDate }}</span>
+                <span *ngIf="transaction.type === 'income'">Recebido: {{ transaction.paidDate }}</span>
+              </span>
+            </div>
+          </div>
+          <div class="transaction-amount" [ngClass]="{'negative': transaction.type === 'expense', 'positive': transaction.type === 'income'}">
+            <span *ngIf="transaction.type === 'expense'">- R$ {{ formatCurrency(transaction.amount) }}</span>
+            <span *ngIf="transaction.type === 'income'">+ R$ {{ formatCurrency(transaction.amount) }}</span>
+          </div>
+          <div class="transaction-actions-wrapper" (click)="$event.stopPropagation()">
+            <button class="transaction-options" (click)="toggleMenu(transaction.id)">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 10.8333C10.4603 10.8333 10.8333 10.4603 10.8333 10C10.8333 9.53976 10.4603 9.16667 10 9.16667C9.53976 9.16667 9.16667 9.53976 9.16667 10C9.16667 10.4603 9.53976 10.8333 10 10.8333Z" fill="#718096"/>
+                <path d="M10 5.83333C10.4603 5.83333 10.8333 5.46024 10.8333 5C10.8333 4.53976 10.4603 4.16667 10 4.16667C9.53976 4.16667 9.16667 4.53976 9.16667 5C9.16667 5.46024 9.53976 5.83333 10 5.83333Z" fill="#718096"/>
+                <path d="M10 15.8333C10.4603 15.8333 10.8333 15.4602 10.8333 15C10.8333 14.5398 10.4603 14.1667 10 14.1667C9.53976 14.1667 9.16667 14.5398 9.16667 15C9.16667 15.4602 9.53976 15.8333 10 15.8333Z" fill="#718096"/>
+              </svg>
+            </button>
+            <div class="actions-menu" *ngIf="openMenuTransactionId === transaction.id" (click)="$event.stopPropagation()">
+              <button class="action-item" (click)="editTransaction(transaction)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M11.3333 2.00001C11.5084 1.8249 11.7163 1.68697 11.9444 1.59524C12.1726 1.50351 12.4159 1.46002 12.6611 1.46768C12.9063 1.47534 13.1481 1.53401 13.3701 1.63971C13.5921 1.74541 13.7892 1.89552 13.9481 2.08068C14.1071 2.26584 14.2243 2.48195 14.2926 2.71462C14.3609 2.94729 14.3787 3.19144 14.3448 3.43119C14.3109 3.67094 14.2261 3.90098 14.0958 4.10667C13.9655 4.31236 13.7928 4.48919 13.5889 4.62668L13.3333 4.88001L11.12 2.66668L11.3733 2.41334C11.5118 2.20942 11.6886 2.03675 11.8943 1.90645C12.1 1.77615 12.3301 1.69135 12.5698 1.65746C12.8096 1.62357 13.0537 1.64135 13.2864 1.70964C13.5191 1.77793 13.7352 1.89515 13.9204 2.05412C14.1055 2.21309 14.2556 2.41015 14.3613 2.63217C14.467 2.85419 14.5257 3.09598 14.5333 3.34123C14.541 3.58648 14.4975 3.82975 14.4058 4.0579C14.3141 4.28605 14.1761 4.49395 14.0011 4.66901L14 4.67001L11.3333 2.00001Z" fill="#4A5568"/>
+                  <path d="M9.33333 4L12 6.66667L5.33333 13.3333H2.66667V10.6667L9.33333 4Z" fill="#4A5568"/>
+                </svg>
+                Editar
+              </button>
+              <button class="action-item delete" (click)="deleteTransaction(transaction.id)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M2 4H14M6 4V2C6 1.46957 6.21071 0.960859 6.58579 0.585786C6.96086 0.210714 7.46957 0 8 0C8.53043 0 9.03914 0.210714 9.41421 0.585786C9.78929 0.960859 10 1.46957 10 2V4H14V6H13.3333V13.3333C13.3333 13.687 13.1929 14.0261 12.9428 14.2761C12.6928 14.5262 12.3537 14.6667 12 14.6667H4C3.64638 14.6667 3.30724 14.5262 3.05719 14.2761C2.80714 14.0261 2.66667 13.687 2.66667 13.3333V6H2V4ZM4 6V13.3333H12V6H4ZM6.66667 8V12H8V8H6.66667ZM8 8V12H9.33333V8H8Z" fill="#DC2626"/>
+                </svg>
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Open Transactions -->
+    <div class="transactions-group" *ngIf="getOpenTransactions().length > 0">
+      <h3 class="group-title">
+        <span *ngIf="activeTab === 'all'">ABERTOS ({{ getOpenTransactions().length }})</span>
+        <span *ngIf="activeTab === 'expenses'">DESPESAS ABERTAS ({{ getOpenTransactions().length }})</span>
+        <span *ngIf="activeTab === 'income'">RECEITAS ABERTAS ({{ getOpenTransactions().length }})</span>
+      </h3>
+      <div class="transaction-list">
+        <div class="transaction-item" *ngFor="let transaction of getOpenTransactions()">
+          <div class="transaction-status open">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="8" cy="8" r="6" stroke="white" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="transaction-content">
+            <div class="transaction-name">{{ transaction.name }}</div>
+            <div class="transaction-meta">
+              <span class="category-tag">{{ transaction.category }}</span>
+              <span class="transaction-dates">Vence: {{ transaction.dueDate }}</span>
+            </div>
+          </div>
+          <div class="transaction-amount" [ngClass]="{'negative': transaction.type === 'expense', 'positive': transaction.type === 'income'}">
+            <span *ngIf="transaction.type === 'expense'">- R$ {{ formatCurrency(transaction.amount) }}</span>
+            <span *ngIf="transaction.type === 'income'">+ R$ {{ formatCurrency(transaction.amount) }}</span>
+          </div>
+          <div class="transaction-actions-wrapper" (click)="$event.stopPropagation()">
+            <button class="transaction-options" (click)="toggleMenu(transaction.id)">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 10.8333C10.4603 10.8333 10.8333 10.4603 10.8333 10C10.8333 9.53976 10.4603 9.16667 10 9.16667C9.53976 9.16667 9.16667 9.53976 9.16667 10C9.16667 10.4603 9.53976 10.8333 10 10.8333Z" fill="#718096"/>
+                <path d="M10 5.83333C10.4603 5.83333 10.8333 5.46024 10.8333 5C10.8333 4.53976 10.4603 4.16667 10 4.16667C9.53976 4.16667 9.16667 4.53976 9.16667 5C9.16667 5.46024 9.53976 5.83333 10 5.83333Z" fill="#718096"/>
+                <path d="M10 15.8333C10.4603 15.8333 10.8333 15.4602 10.8333 15C10.8333 14.5398 10.4603 14.1667 10 14.1667C9.53976 14.1667 9.16667 14.5398 9.16667 15C9.16667 15.4602 9.53976 15.8333 10 15.8333Z" fill="#718096"/>
+              </svg>
+            </button>
+            <div class="actions-menu" *ngIf="openMenuTransactionId === transaction.id" (click)="$event.stopPropagation()">
+              <button class="action-item" (click)="markAsPaid(transaction)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M13.3333 4L6 11.3333L2.66667 8" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Marcar como pago
+              </button>
+              <button class="action-item" (click)="editTransaction(transaction)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M11.3333 2.00001C11.5084 1.8249 11.7163 1.68697 11.9444 1.59524C12.1726 1.50351 12.4159 1.46002 12.6611 1.46768C12.9063 1.47534 13.1481 1.53401 13.3701 1.63971C13.5921 1.74541 13.7892 1.89552 13.9481 2.08068C14.1071 2.26584 14.2243 2.48195 14.2926 2.71462C14.3609 2.94729 14.3787 3.19144 14.3448 3.43119C14.3109 3.67094 14.2261 3.90098 14.0958 4.10667C13.9655 4.31236 13.7928 4.48919 13.5889 4.62668L13.3333 4.88001L11.12 2.66668L11.3733 2.41334C11.5118 2.20942 11.6886 2.03675 11.8943 1.90645C12.1 1.77615 12.3301 1.69135 12.5698 1.65746C12.8096 1.62357 13.0537 1.64135 13.2864 1.70964C13.5191 1.77793 13.7352 1.89515 13.9204 2.05412C14.1055 2.21309 14.2556 2.41015 14.3613 2.63217C14.467 2.85419 14.5257 3.09598 14.5333 3.34123C14.541 3.58648 14.4975 3.82975 14.4058 4.0579C14.3141 4.28605 14.1761 4.49395 14.0011 4.66901L14 4.67001L11.3333 2.00001Z" fill="#4A5568"/>
+                  <path d="M9.33333 4L12 6.66667L5.33333 13.3333H2.66667V10.6667L9.33333 4Z" fill="#4A5568"/>
+                </svg>
+                Editar
+              </button>
+              <button class="action-item delete" (click)="deleteTransaction(transaction.id)">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M2 4H14M6 4V2C6 1.46957 6.21071 0.960859 6.58579 0.585786C6.96086 0.210714 7.46957 0 8 0C8.53043 0 9.03914 0.210714 9.41421 0.585786C9.78929 0.960859 10 1.46957 10 2V4H14V6H13.3333V13.3333C13.3333 13.687 13.1929 14.0261 12.9428 14.2761C12.6928 14.5262 12.3537 14.6667 12 14.6667H4C3.64638 14.6667 3.30724 14.5262 3.05719 14.2761C2.80714 14.0261 2.66667 13.687 2.66667 13.3333V6H2V4ZM4 6V13.3333H12V6H4ZM6.66667 8V12H8V8H6.66667ZM8 8V12H9.33333V8H8Z" fill="#DC2626"/>
+                </svg>
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Nova Transação -->
+  <div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Nova Transação</h2>
+        <button class="close-btn" (click)="closeModal()">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 5L5 15M5 5L15 15" stroke="#718096" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <form [formGroup]="transactionForm" (ngSubmit)="onSubmit()" class="modal-form">
+        <!-- Transaction Type Tabs -->
+        <div class="transaction-type-tabs">
+          <button 
+            type="button"
+            class="type-tab" 
+            [class.active]="transactionType === 'income'"
+            (click)="setTransactionType('income')">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 15L9 9L13 13L17 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17 9H11V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Receita
+          </button>
+          <button 
+            type="button"
+            class="type-tab" 
+            [class.active]="transactionType === 'expense'"
+            (click)="setTransactionType('expense')">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 5L9 11L13 7L17 11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17 11H11V5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Despesa
+          </button>
+        </div>
+
+        <!-- Form Fields -->
+        <div class="form-group">
+          <label for="description">Descrição</label>
+          <input
+            type="text"
+            id="description"
+            formControlName="description"
+            placeholder="Ex: Aluguel, Salário, etc."
+            [class.error]="transactionForm.get('description')?.invalid && transactionForm.get('description')?.touched"
+          />
+          <span class="error-message" *ngIf="transactionForm.get('description')?.invalid && transactionForm.get('description')?.touched">
+            Descrição é obrigatória
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="amount">Valor (R$)</label>
+          <input
+            type="text"
+            id="amount"
+            formControlName="amount"
+            (input)="formatCurrencyInput($event)"
+            [class.error]="transactionForm.get('amount')?.invalid && transactionForm.get('amount')?.touched"
+          />
+          <span class="error-message" *ngIf="transactionForm.get('amount')?.invalid && transactionForm.get('amount')?.touched">
+            Valor é obrigatório
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="category">Categoria</label>
+          <select
+            id="category"
+            formControlName="category"
+            [class.error]="transactionForm.get('category')?.invalid && transactionForm.get('category')?.touched"
+          >
+            <option value="">Selecione</option>
+            <option *ngFor="let category of categories" [value]="category">{{ category }}</option>
+          </select>
+          <span class="error-message" *ngIf="transactionForm.get('category')?.invalid && transactionForm.get('category')?.touched">
+            Categoria é obrigatória
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="dueDate">Data de Vencimento</label>
+          <div class="date-input-wrapper">
+            <input
+              type="date"
+              id="dueDate"
+              formControlName="dueDate"
+              [class.error]="transactionForm.get('dueDate')?.invalid && transactionForm.get('dueDate')?.touched"
+            />
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" class="calendar-icon">
+              <path d="M15.8333 2.5H15V1.66667C15 1.20833 14.625 0.833333 14.1667 0.833333C13.7083 0.833333 13.3333 1.20833 13.3333 1.66667V2.5H6.66667V1.66667C6.66667 1.20833 6.29167 0.833333 5.83333 0.833333C5.375 0.833333 5 1.20833 5 1.66667V2.5H4.16667C2.875 2.5 1.875 3.5 1.875 4.79167V15.8333C1.875 17.125 2.875 18.125 4.16667 18.125H15.8333C17.125 18.125 18.125 17.125 18.125 15.8333V4.79167C18.125 3.5 17.125 2.5 15.8333 2.5ZM15.8333 15.8333H4.16667V8.33333H15.8333V15.8333Z" fill="#718096"/>
+            </svg>
+          </div>
+          <span class="error-message" *ngIf="transactionForm.get('dueDate')?.invalid && transactionForm.get('dueDate')?.touched">
+            Data de vencimento é obrigatória
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="recurrence">Recorrência</label>
+          <select
+            id="recurrence"
+            formControlName="recurrence"
+            [class.error]="transactionForm.get('recurrence')?.invalid && transactionForm.get('recurrence')?.touched"
+          >
+            <option *ngFor="let option of recurrenceOptions" [value]="option">{{ option }}</option>
+          </select>
+          <span class="error-message" *ngIf="transactionForm.get('recurrence')?.invalid && transactionForm.get('recurrence')?.touched">
+            Recorrência é obrigatória
+          </span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" (click)="closeModal()">Cancelar</button>
+          <button type="submit" class="btn-submit" [class.income]="transactionType === 'income'" [class.expense]="transactionType === 'expense'">
+            Adicionar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
