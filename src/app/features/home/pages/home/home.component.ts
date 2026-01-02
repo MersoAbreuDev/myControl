@@ -1,7 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { TransactionService, Transaction } from '../../../../core/services/transaction.service';
+import { DashboardService } from '../../../../core/services/dashboard.service';
+import { AuthService } from '../../../../core/services/auth.service';
 
 @Component({
   selector: 'app-home',
@@ -10,9 +13,22 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss'
 })
-export class HomeComponent {
-  constructor(private fb: FormBuilder) {
+export class HomeComponent implements OnInit {
+  constructor(
+    private fb: FormBuilder,
+    private transactionService: TransactionService,
+    private dashboardService: DashboardService,
+    private authService: AuthService
+  ) {
     this.initTransactionForm();
+  }
+
+  ngOnInit() {
+    // Aguarda um pouco para garantir que o token está disponível
+    setTimeout(() => {
+      this.loadDashboard();
+      this.loadTransactions();
+    }, 100);
   }
 
   currentDate = new Date();
@@ -23,10 +39,13 @@ export class HomeComponent {
   }
 
   receitas = 0;
-  despesas = 1520;
-  saldo = this.receitas - this.despesas;
+  despesas = 0;
+  saldo = 0;
+  isLoading = false;
 
   showModal = false;
+  showDeleteModal = false;
+  transactionToDelete: number | null = null;
   transactionType: 'income' | 'expense' = 'expense';
   transactionForm!: FormGroup;
 
@@ -55,53 +74,55 @@ export class HomeComponent {
 
   activeTab: 'all' | 'expenses' | 'income' = 'all';
 
-  transactions = [
-    {
-      id: 1,
-      name: 'TEste',
-      category: 'Alimentação',
-      dueDate: '01 jan 2026',
-      paidDate: '01 jan',
-      amount: 1520,
-      status: 'paid',
-      type: 'expense' as 'income' | 'expense'
-    },
-    {
-      id: 2,
-      name: 'Salário',
-      category: 'Trabalho',
-      dueDate: '05 jan 2026',
-      paidDate: '05 jan',
-      amount: 5000,
-      status: 'paid',
-      type: 'income' as 'income' | 'expense'
-    },
-    {
-      id: 3,
-      name: 'Conta de Luz',
-      category: 'Utilidades',
-      dueDate: '10 jan 2026',
-      paidDate: '10 jan',
-      amount: 250,
-      status: 'paid',
-      type: 'expense' as 'income' | 'expense'
-    },
-    {
-      id: 4,
-      name: 'Conta de Água',
-      category: 'Utilidades',
-      dueDate: '15 jan 2026',
-      paidDate: '',
-      amount: 180,
-      status: 'open',
-      type: 'expense' as 'income' | 'expense'
-    }
-  ];
+  transactions: Transaction[] = [];
+  editingTransactionId: number | null = null;
 
   openMenuTransactionId: number | null = null;
 
   setActiveTab(tab: 'all' | 'expenses' | 'income') {
     this.activeTab = tab;
+    this.loadTransactions();
+  }
+
+  loadDashboard() {
+    const month = this.currentDate.getMonth() + 1;
+    const year = this.currentDate.getFullYear();
+    
+    this.dashboardService.getSummary(month, year).subscribe({
+      next: (summary) => {
+        this.receitas = summary.receitas / 100; // Converter de centavos para reais
+        this.despesas = summary.despesas / 100;
+        this.saldo = summary.saldo / 100;
+      },
+      error: (err) => {
+        console.error('Erro ao carregar dashboard:', err);
+      }
+    });
+  }
+
+  loadTransactions() {
+    this.isLoading = true;
+    let type: string | undefined;
+    
+    if (this.activeTab === 'expenses') {
+      type = 'expense';
+    } else if (this.activeTab === 'income') {
+      type = 'income';
+    }
+    
+    const month = this.currentDate.getMonth() + 1;
+    const year = this.currentDate.getFullYear();
+    
+    this.transactionService.findAll(type, undefined, month, year).subscribe({
+      next: (transactions) => {
+        this.transactions = transactions;
+        this.isLoading = false;
+      },
+      error: (err) => {
+        console.error('Erro ao carregar transações:', err);
+        this.isLoading = false;
+      }
+    });
   }
 
   getFilteredTransactions() {
@@ -124,7 +145,18 @@ export class HomeComponent {
     return this.getFilteredTransactions().filter(t => t.status === 'open');
   }
 
-  toggleMenu(transactionId: number) {
+  formatTransactionDate(dateStr: string): string {
+    const date = new Date(dateStr);
+    const monthNames = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    return `${date.getDate()} ${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+  }
+
+  formatTransactionAmount(amount: number): number {
+    return amount / 100; // Converter de centavos para reais
+  }
+
+  toggleMenu(transactionId: number | undefined) {
+    if (!transactionId) return;
     this.openMenuTransactionId = this.openMenuTransactionId === transactionId ? null : transactionId;
   }
 
@@ -132,62 +164,79 @@ export class HomeComponent {
     this.openMenuTransactionId = null;
   }
 
-  editTransaction(transaction: any) {
+  editTransaction(transaction: Transaction) {
     this.closeMenu();
-    // Preencher o formulário com os dados da transação
+    this.editingTransactionId = transaction.id!;
     this.transactionType = transaction.type;
-    const dueDate = this.parseDate(transaction.dueDate);
+    
+    const dueDate = new Date(transaction.dueDate);
+    const formattedDate = `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`;
     
     this.transactionForm.patchValue({
-      description: transaction.name,
-      amount: this.formatCurrency(transaction.amount),
+      description: transaction.description,
+      amount: this.formatCurrency(transaction.amount / 100),
       category: transaction.category,
-      dueDate: dueDate,
-      recurrence: 'Única'
+      dueDate: formattedDate,
+      recurrence: transaction.recurrence
     });
     
     this.showModal = true;
   }
 
-  deleteTransaction(transactionId: number) {
-    if (confirm('Tem certeza que deseja excluir esta transação?')) {
-      this.transactions = this.transactions.filter(t => t.id !== transactionId);
-      this.closeMenu();
-    }
-  }
-
-  markAsPaid(transaction: any) {
-    const today = new Date();
-    const monthNames = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-    const paidDate = `${today.getDate()} ${monthNames[today.getMonth()]}`;
-    
-    const index = this.transactions.findIndex(t => t.id === transaction.id);
-    if (index !== -1) {
-      this.transactions[index] = {
-        ...this.transactions[index],
-        status: 'paid',
-        paidDate: paidDate
-      };
-    }
+  openDeleteModal(transactionId: number) {
+    this.transactionToDelete = transactionId;
+    this.showDeleteModal = true;
     this.closeMenu();
   }
 
-  parseDate(dateStr: string): string {
-    // Converte "01 jan 2026" para "2026-01-01"
-    const parts = dateStr.split(' ');
-    const day = parts[0].padStart(2, '0');
-    const monthNames = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-    const month = String(monthNames.indexOf(parts[1].toLowerCase()) + 1).padStart(2, '0');
-    const year = parts[2];
-    return `${year}-${month}-${day}`;
+  closeDeleteModal() {
+    this.showDeleteModal = false;
+    this.transactionToDelete = null;
+  }
+
+  confirmDelete() {
+    if (this.transactionToDelete) {
+      this.transactionService.delete(this.transactionToDelete).subscribe({
+        next: () => {
+          this.loadTransactions();
+          this.loadDashboard();
+          this.closeDeleteModal();
+        },
+        error: (err) => {
+          console.error('Erro ao excluir transação:', err);
+          alert('Erro ao excluir transação. Tente novamente.');
+          this.closeDeleteModal();
+        }
+      });
+    }
+  }
+
+  markAsPaid(transaction: Transaction) {
+    const actionText = transaction.type === 'expense' ? 'paga' : 'recebida';
+    
+    this.transactionService.markAsPaid(transaction.id!).subscribe({
+      next: () => {
+        this.loadTransactions();
+        this.loadDashboard();
+        this.closeMenu();
+      },
+      error: (err) => {
+        console.error(`Erro ao marcar como ${actionText}:`, err);
+        alert(`Erro ao marcar transação como ${actionText}. Tente novamente.`);
+      }
+    });
   }
 
   previousMonth() {
     this.currentDate = new Date(this.currentDate.setMonth(this.currentDate.getMonth() - 1));
+    this.loadDashboard();
+    this.loadTransactions();
   }
 
   nextMonth() {
     this.currentDate = new Date(this.currentDate.setMonth(this.currentDate.getMonth() + 1));
+    this.loadDashboard();
+    this.loadTransactions();
   }
 
   initTransactionForm() {
@@ -215,6 +264,7 @@ export class HomeComponent {
 
   closeModal() {
     this.showModal = false;
+    this.editingTransactionId = null;
     this.transactionForm.reset();
     this.initTransactionForm();
   }
@@ -237,12 +287,48 @@ export class HomeComponent {
 
   onSubmit() {
     if (this.transactionForm.valid) {
-      // Aqui você pode adicionar a lógica para salvar a transação
-      console.log('Transação:', {
+      const formValue = this.transactionForm.value;
+      
+      // Converter valor de reais para centavos
+      const amountStr = formValue.amount.replace(/\D/g, '');
+      const amount = parseInt(amountStr);
+      
+      const transactionData = {
+        description: formValue.description,
+        amount: amount,
+        category: formValue.category,
         type: this.transactionType,
-        ...this.transactionForm.value
-      });
-      this.closeModal();
+        dueDate: formValue.dueDate,
+        recurrence: formValue.recurrence
+      };
+
+      if (this.editingTransactionId) {
+        // Atualizar transação existente
+        this.transactionService.update(this.editingTransactionId, transactionData).subscribe({
+          next: () => {
+            this.loadTransactions();
+            this.loadDashboard();
+            this.closeModal();
+          },
+          error: (err) => {
+            console.error('Erro ao atualizar transação:', err);
+            alert('Erro ao atualizar transação. Tente novamente.');
+          }
+        });
+      } else {
+        // Criar nova transação
+        this.transactionService.create(transactionData).subscribe({
+          next: () => {
+            this.loadTransactions();
+            this.loadDashboard();
+            this.closeModal();
+          },
+          error: (err) => {
+            console.error('Erro ao criar transação:', err);
+            alert('Erro ao criar transação. Tente novamente.');
+          }
+        });
+      }
     } else {
       this.markFormGroupTouched();
     }
@@ -253,6 +339,10 @@ export class HomeComponent {
       const control = this.transactionForm.get(key);
       control?.markAsTouched();
     });
+  }
+
+  logout() {
+    this.authService.logout();
   }
 }
 

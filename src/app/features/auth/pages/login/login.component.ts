@@ -38,13 +38,25 @@ export class LoginComponent {
         next: (success) => {
           this.isLoading = false;
           if (success) {
-            this.router.navigate(['/home']);
+            // Verifica se o token está realmente salvo antes de navegar
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+              // Navega imediatamente - o guard vai verificar o token
+              this.router.navigate(['/home']).catch(() => {
+                // Se falhar, força o redirecionamento
+                window.location.href = '/home';
+              });
+            } else {
+              console.error('❌ Token não encontrado após login');
+              this.errorMessage = 'Erro ao salvar token. Tente novamente.';
+            }
           } else {
             this.errorMessage = 'Email ou senha incorretos';
           }
         },
-        error: () => {
+        error: (error) => {
           this.isLoading = false;
+          console.error('❌ Erro no login:', error);
           this.errorMessage = 'Erro ao fazer login. Tente novamente.';
         }
       });
